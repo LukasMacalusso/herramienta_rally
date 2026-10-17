@@ -1,16 +1,27 @@
 from pathlib import Path
 from typing import Tuple
 import matplotlib.pyplot as plt
-from SimConfig import (
+from simulaciones.SimConfig import (
     ConfigEconomica,
     ConfigPanelSolar,
     ConfigRiego,
     MesClimatico,
     obtener_clima_araucania,
+    obtener_consumo_rural_regiones,
 )
-from SimuladorDiagnostico import ResultadoDiagnostico, SimuladorDiagnostico
-from SimuladorEconomico import ResultadoEconomico, SimuladorEconomico
-from SimuladorRiego import ResultadoMensualRiego, SimuladorRiego
+from simulaciones.SimuladorConsumoRural import (
+    ResultadoConsumoRural,
+    SimuladorConsumoRural,
+)
+from simulaciones.SimuladorDiagnostico import (
+    ResultadoDiagnostico,
+    SimuladorDiagnostico,
+)
+from simulaciones.SimuladorEconomico import (
+    ResultadoEconomico,
+    SimuladorEconomico,
+)
+from simulaciones.SimuladorRiego import ResultadoMensualRiego, SimuladorRiego
 
 
 CARPETA_REPORTE = Path(__file__).resolve().parent.parent / "report"
@@ -95,12 +106,45 @@ def generar_grafico_economico(
     plt.close()
 
 
+def generar_grafico_consumo_rural(
+    resultados_rural: Tuple[ResultadoConsumoRural, ...],
+    ruta_salida: Path,
+) -> None:
+    regiones = [r.nombre_region for r in reversed(resultados_rural)]
+    consumos = [r.consumo_rural_gwh_anio for r in reversed(resultados_rural)]
+    colores = [
+        "#d95f02" if r == "La Araucanía" else "#3b7ea1" for r in regiones
+    ]
+
+    plt.figure(figsize=(10, 6.5))
+    barras = plt.barh(regiones, consumos, color=colores, height=0.68)
+
+    for barra, valor in zip(barras, consumos):
+        plt.text(
+            valor + 6,
+            barra.get_y() + barra.get_height() / 2.0,
+            f"{valor:.0f} GWh",
+            va="center",
+            fontsize=8.5,
+        )
+
+    plt.xlim(0, max(consumos) * 1.16)
+    plt.title("Consumo Eléctrico de Sectores Rurales por Región de Chile (GWh/año)")
+    plt.xlabel("Consumo Eléctrico Rural Estimado (GWh / año)")
+    plt.ylabel("Región (Norte a Sur)")
+    plt.grid(True, axis="x", linestyle="--", alpha=0.5)
+    plt.tight_layout()
+    plt.savefig(ruta_salida, dpi=150)
+    plt.close()
+
+
 def construir_reporte_markdown(
     clima: Tuple[MesClimatico, ...],
     resultados_riego: Tuple[ResultadoMensualRiego, ...],
     resultados_eco: Tuple[ResultadoEconomico, ...],
     punto_equilibrio: float,
     resultados_diag: Tuple[ResultadoDiagnostico, ...],
+    resultados_rural: Tuple[ResultadoConsumoRural, ...],
 ) -> str:
     lineas = [
         "# Resultados de la Simulación en Python",
@@ -170,6 +214,30 @@ def construir_reporte_markdown(
             f"{d.error_puntos_porcentuales:.2f} | {d.clase_asignada} |"
         )
 
+    lineas.extend(
+        [
+            "",
+            "## 4. Consumo Eléctrico de Sectores Rurales por Región de Chile",
+            "",
+            "| Región | Consumo Rural (GWh/año) | Predios y Escuelas Rurales | Consumo Promedio (kWh/mes) | Energía Anual 1 Panel Clase B (kWh/año) | Paneles Clase B para cubrir 10% (Miles) |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+
+    for r in resultados_rural:
+        lineas.append(
+            f"| {r.nombre_region} | {r.consumo_rural_gwh_anio:.1f} | {r.predios_y_escuelas_rurales:,} | "
+            f"{r.consumo_promedio_kwh_mes_por_predio:.1f} | {r.energia_anual_panel_clase_b_kwh:.0f} | "
+            f"{r.paneles_para_cubrir_10_porciento_miles:.1f}k |"
+        )
+
+    lineas.extend(
+        [
+            "",
+            "![Consumo Eléctrico Rural por Región](grafico_consumo_rural_chile.png)",
+        ]
+    )
+
     return "\n".join(lineas) + "\n"
 
 
@@ -180,6 +248,7 @@ def guardar_resultados_en_report(
     resultados_eco: Tuple[ResultadoEconomico, ...],
     punto_equilibrio: float,
     resultados_diag: Tuple[ResultadoDiagnostico, ...],
+    resultados_rural: Tuple[ResultadoConsumoRural, ...],
 ) -> None:
     CARPETA_REPORTE.mkdir(parents=True, exist_ok=True)
     generar_grafico_energia(
@@ -192,8 +261,17 @@ def guardar_resultados_en_report(
         resultados_eco,
         CARPETA_REPORTE / "grafico_sensibilidad_economica.png",
     )
+    generar_grafico_consumo_rural(
+        resultados_rural,
+        CARPETA_REPORTE / "grafico_consumo_rural_chile.png",
+    )
     reporte_md = construir_reporte_markdown(
-        clima, resultados_riego, resultados_eco, punto_equilibrio, resultados_diag
+        clima,
+        resultados_riego,
+        resultados_eco,
+        punto_equilibrio,
+        resultados_diag,
+        resultados_rural,
     )
     ruta_md = CARPETA_REPORTE / "Reporte_Simulacion.md"
     ruta_md.write_text(reporte_md, encoding="utf-8")
@@ -201,6 +279,7 @@ def guardar_resultados_en_report(
 
 def ejecutar_todo() -> None:
     clima = obtener_clima_araucania()
+    regiones = obtener_consumo_rural_regiones()
     config_panel = ConfigPanelSolar()
     config_riego = ConfigRiego()
     config_eco = ConfigEconomica()
@@ -210,6 +289,7 @@ def ejecutar_todo() -> None:
     resultados_eco = sim_eco.simular_todos()
     punto_equilibrio = sim_eco.calcular_punto_equilibrio()
     resultados_diag = SimuladorDiagnostico().simular_bateria_pruebas((0.85, 0.60, 0.45))
+    resultados_rural = SimuladorConsumoRural(config_panel).simular_chile(regiones)
 
     guardar_resultados_en_report(
         clima,
@@ -218,8 +298,9 @@ def ejecutar_todo() -> None:
         resultados_eco,
         punto_equilibrio,
         resultados_diag,
+        resultados_rural,
     )
-    print(f"Simulacion completada en: {CARPETA_REPORTE}")
+    print(f"Simulaciones completadas en: {CARPETA_REPORTE}")
 
 
 if __name__ == "__main__":

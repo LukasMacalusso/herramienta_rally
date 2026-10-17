@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Tuple
-from SimConfig import ConfigEconomica
+from simulaciones.SimConfig import ConfigEconomica
 
 
 @dataclass(frozen=True)

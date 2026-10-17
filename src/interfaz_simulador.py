@@ -3,26 +3,29 @@ from tkinter import ttk
 from typing import Tuple
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-from SimConfig import (
+from simulaciones.SimConfig import (
     ConfigEconomica,
     ConfigPanelSolar,
     ConfigRiego,
     MesClimatico,
     obtener_clima_araucania,
+    obtener_consumo_rural_regiones,
 )
-from SimuladorDiagnostico import SimuladorDiagnostico
-from SimuladorEconomico import SimuladorEconomico
-from SimuladorRiego import SimuladorRiego
-from ejecutar_simulacion import CARPETA_REPORTE, guardar_resultados_en_report
+from simulaciones.SimuladorConsumoRural import SimuladorConsumoRural
+from simulaciones.SimuladorDiagnostico import SimuladorDiagnostico
+from simulaciones.SimuladorEconomico import SimuladorEconomico
+from simulaciones.SimuladorRiego import SimuladorRiego
+from ejecutar_simulaciones import guardar_resultados_en_report
 
 
 class VentanaSimulador:
     def __init__(self, raiz: tk.Tk) -> None:
         self.raiz = raiz
         self.raiz.title("Motor de Simulación - Segunda Vida de Paneles Solares")
-        self.raiz.geometry("1260x800")
+        self.raiz.geometry("1280x820")
 
         self.clima_base = obtener_clima_araucania()
+        self.regiones_base = obtener_consumo_rural_regiones()
         self._inicializar_variables()
         self._construir_estructura()
         self._construir_controles()
@@ -143,7 +146,7 @@ class VentanaSimulador:
 
         boton_exportar = ttk.Button(
             self.panel_izquierdo,
-            text="Exportar Reporte y Gráficos",
+            text="Exportar Reporte y 3 Gráficos",
             command=self.exportar_resultados,
         )
         boton_exportar.pack(fill=tk.X, pady=(4, 4))
@@ -156,12 +159,28 @@ class VentanaSimulador:
         boton_reset.pack(fill=tk.X, pady=2)
 
     def _construir_lienzo_graficos(self) -> None:
-        self.figura = Figure(figsize=(8.8, 7.2), dpi=100)
-        self.eje_energia = self.figura.add_subplot(2, 1, 1)
-        self.eje_economico = self.figura.add_subplot(2, 1, 2)
+        self.pestanas = ttk.Notebook(self.panel_derecho)
+        self.pestanas.pack(fill=tk.BOTH, expand=True)
 
-        self.lienzo = FigureCanvasTkAgg(self.figura, master=self.panel_derecho)
-        self.lienzo.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self.tab_principal = ttk.Frame(self.pestanas)
+        self.tab_rural = ttk.Frame(self.pestanas)
+
+        self.pestanas.add(self.tab_principal, text=" 1. Riego y Prefactibilidad ")
+        self.pestanas.add(self.tab_rural, text=" 2. Consumo Rural por Región (Chile) ")
+
+        self.figura_principal = Figure(figsize=(8.8, 7.2), dpi=100)
+        self.eje_energia = self.figura_principal.add_subplot(2, 1, 1)
+        self.eje_economico = self.figura_principal.add_subplot(2, 1, 2)
+        self.lienzo_principal = FigureCanvasTkAgg(
+            self.figura_principal, master=self.tab_principal
+        )
+        self.lienzo_principal.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        self.figura_rural = Figure(figsize=(8.8, 7.2), dpi=100)
+        self.eje_rural_gwh = self.figura_rural.add_subplot(1, 2, 1)
+        self.eje_rural_paneles = self.figura_rural.add_subplot(1, 2, 2)
+        self.lienzo_rural = FigureCanvasTkAgg(self.figura_rural, master=self.tab_rural)
+        self.lienzo_rural.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
     def _obtener_configs_actuales(
         self,
@@ -200,12 +219,19 @@ class VentanaSimulador:
         resultados_eco = sim_eco.simular_todos()
         equilibrio = sim_eco.calcular_punto_equilibrio()
 
+        sim_rural = SimuladorConsumoRural(config_panel)
+        resultados_rural = sim_rural.simular_chile(self.regiones_base)
+
         self._dibujar_energia(clima, config_panel, config_riego, resultados_riego)
         self._dibujar_economia(resultados_eco, equilibrio)
+        self._dibujar_consumo_rural(resultados_rural, config_panel)
         self._actualizar_indicador_estado(resultados_riego, equilibrio)
 
-        self.figura.tight_layout(pad=2.5)
-        self.lienzo.draw()
+        self.figura_principal.tight_layout(pad=2.5)
+        self.lienzo_principal.draw()
+
+        self.figura_rural.tight_layout(pad=2.5)
+        self.lienzo_rural.draw()
 
     def _actualizar_indicador_estado(self, resultados_riego, equilibrio: float) -> None:
         resultados_50 = [r for r in resultados_riego if r.salud_panel == 0.50]
@@ -304,6 +330,32 @@ class VentanaSimulador:
         self.eje_economico.grid(True, axis="y", linestyle="--", alpha=0.5)
         self.eje_economico.legend(loc="upper right", fontsize=8)
 
+    def _dibujar_consumo_rural(self, resultados_rural, config_panel: ConfigPanelSolar) -> None:
+        self.eje_rural_gwh.clear()
+        self.eje_rural_paneles.clear()
+
+        regiones = [r.nombre_region for r in reversed(resultados_rural)]
+        consumos = [r.consumo_rural_gwh_anio for r in reversed(resultados_rural)]
+        paneles_miles = [
+            r.paneles_para_cubrir_10_porciento_miles for r in reversed(resultados_rural)
+        ]
+        colores = [
+            "#d95f02" if r == "La Araucanía" else "#3b7ea1" for r in regiones
+        ]
+
+        self.eje_rural_gwh.barh(regiones, consumos, color=colores, height=0.68)
+        self.eje_rural_gwh.set_title("Consumo Eléctrico Rural (GWh/año)")
+        self.eje_rural_gwh.set_xlabel("GWh / año")
+        self.eje_rural_gwh.grid(True, axis="x", linestyle="--", alpha=0.5)
+
+        self.eje_rural_paneles.barh(regiones, paneles_miles, color=colores, height=0.68)
+        self.eje_rural_paneles.set_title(
+            f"Paneles Clase B ({config_panel.potencia_nominal_watts:.0f}W) para cubrir 10%"
+        )
+        self.eje_rural_paneles.set_xlabel("Miles de paneles reutilizados")
+        self.eje_rural_paneles.get_yaxis().set_visible(False)
+        self.eje_rural_paneles.grid(True, axis="x", linestyle="--", alpha=0.5)
+
     def restablecer_valores(self) -> None:
         self.var_potencia_panel.set(300.0)
         self.var_eficiencia.set(80.0)
@@ -331,6 +383,7 @@ class VentanaSimulador:
         resultados_eco = sim_eco.simular_todos()
         equilibrio = sim_eco.calcular_punto_equilibrio()
         resultados_diag = SimuladorDiagnostico().simular_bateria_pruebas((0.85, 0.60, 0.45))
+        resultados_rural = SimuladorConsumoRural(config_panel).simular_chile(self.regiones_base)
 
         guardar_resultados_en_report(
             clima,
@@ -339,10 +392,11 @@ class VentanaSimulador:
             resultados_eco,
             equilibrio,
             resultados_diag,
+            resultados_rural,
         )
 
         self.etiqueta_estado.config(
-            text=f"EXPORTADO en report/:\nReporte_Simulacion.md y gráficos PNG.",
+            text="EXPORTADO en report/:\nReporte_Simulacion.md y los 3 gráficos PNG.",
             bg="#cce5ff",
             fg="#004085",
         )

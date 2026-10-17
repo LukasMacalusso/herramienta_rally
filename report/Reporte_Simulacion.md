@@ -21,13 +21,13 @@
 
 ## 2. Sensibilidad Económica del Triaje (Lote de 10.000 paneles)
 
-- **Punto de equilibrio (break-even):** Basta con que el **8.3%** del lote sea reutilizable para que el triaje se pague solo frente al reciclaje.
+- **Punto de equilibrio (break-even):** Basta con que el **16.7%** del lote sea reutilizable para que el triaje se pague solo frente al reciclaje.
 
 | % Reutilizable | Paneles Reutilizados | Paneles a Reciclar | Costo Reciclar Todo (US$) | Costo con Triaje (US$) | Ahorro Neto (US$) | Ahorro (%) |
 | --- | --- | --- | --- | --- | --- | --- |
-| 30% | 3000 | 7000 | 600,000 | 470,000 | 130,000 | 21.7% |
-| 50% | 5000 | 5000 | 600,000 | 350,000 | 250,000 | 41.7% |
-| 70% | 7000 | 3000 | 600,000 | 230,000 | 370,000 | 61.7% |
+| 30% | 3000 | 7000 | 300,000 | 260,000 | 40,000 | 13.3% |
+| 50% | 5000 | 5000 | 300,000 | 200,000 | 100,000 | 33.3% |
+| 70% | 7000 | 3000 | 300,000 | 140,000 | 160,000 | 53.3% |
 
 ![Sensibilidad Económica](grafico_sensibilidad_economica.png)
 
@@ -44,3 +44,26 @@
 | 45% | 400 | 1.74 | 0.0591 | 46.4% | 1.37 | Clase D (Reciclaje) |
 | 45% | 700 | 3.04 | 0.1034 | 46.4% | 1.37 | Clase D (Reciclaje) |
 | 45% | 1000 | 4.34 | 0.1477 | 46.4% | 1.37 | Clase D (Reciclaje) |
+
+## 4. Consumo Eléctrico de Sectores Rurales por Región de Chile
+
+| Región | Consumo Rural (GWh/año) | Predios y Escuelas Rurales | Consumo Promedio (kWh/mes) | Energía Anual 1 Panel Clase B (kWh/año) | Paneles Clase B para cubrir 10% (Miles) |
+| --- | --- | --- | --- | --- | --- |
+| Arica y Parinacota | 28.0 | 3,200 | 729.2 | 326 | 8.6k |
+| Tarapacá | 24.0 | 2,800 | 714.3 | 336 | 7.1k |
+| Antofagasta | 32.0 | 2,500 | 1066.7 | 347 | 9.2k |
+| Atacama | 65.0 | 4,800 | 1128.5 | 321 | 20.3k |
+| Coquimbo | 185.0 | 19,500 | 790.6 | 284 | 65.2k |
+| Valparaíso | 260.0 | 22,000 | 984.8 | 252 | 103.1k |
+| Metropolitana | 310.0 | 18,500 | 1396.4 | 258 | 120.4k |
+| O'Higgins | 420.0 | 34,000 | 1029.4 | 242 | 173.7k |
+| Maule | 465.0 | 48,000 | 807.3 | 226 | 205.7k |
+| Ñuble | 240.0 | 29,000 | 689.7 | 216 | 111.4k |
+| Biobío | 315.0 | 35,000 | 750.0 | 200 | 157.7k |
+| La Araucanía | 380.0 | 54,000 | 586.4 | 173 | 219.1k |
+| Los Ríos | 195.0 | 21,000 | 773.8 | 158 | 123.7k |
+| Los Lagos | 340.0 | 39,000 | 726.5 | 152 | 223.1k |
+| Aysén | 42.0 | 4,500 | 777.8 | 142 | 29.6k |
+| Magallanes | 35.0 | 3,100 | 940.9 | 126 | 27.7k |
+
+![Consumo Eléctrico Rural por Región](grafico_consumo_rural_chile.png)

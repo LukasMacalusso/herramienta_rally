@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Tuple
-from SimConfig import ConfigPanelSolar, ConfigRiego, MesClimatico
+from simulaciones.SimConfig import ConfigPanelSolar, ConfigRiego, MesClimatico
 
 
 @dataclass(frozen=True)
